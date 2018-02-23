@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Inworks.MailDownloader\dpQuery\dpQuery.csproj" />
+    <ProjectReference Include="..\..\dpQuery\dpQuery.csproj" />
   </ItemGroup>
 
 </Project>
