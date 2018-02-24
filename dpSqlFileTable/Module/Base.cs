@@ -16,16 +16,17 @@ namespace dpSqlFileTable
 		private readonly string _hashTable;
 		protected internal readonly Qs qs;
 
-		protected internal Base(ConnectionStringSettings connectionStringSettings, string fileTable, string hashTable)
+		protected internal Base(ConnectionStringSettings connectionStringSettings, string fileTable, string hashTable, bool debugMode)
 		{
 			_fileTable = new Regex(@"[^a-zA-Z0-9\._-]").Replace(fileTable.Trim(), "");
 			_hashTable = hashTable;
 			qs = new Qs(connectionStringSettings);
+			qs.DebugMode = debugMode;
 		}
 
-		protected internal async Task<EntryData> UpdateEntryAsync(string entryName, EntryData entryData, byte[] content, SqlTransaction transaction)
+		protected internal EntryData UpdateEntry(string entryName, EntryData entryData, byte[] content, SqlTransaction transaction)
 		{
-			await qs.ExecuteNonQueryInTransactionAsync(FormatQuery(SqlStrings.UpdateEntry),
+			qs.ExecuteNonQueryInTransaction(FormatQuery(SqlStrings.UpdateEntry),
 				transaction,
 				p =>
 				{
@@ -35,7 +36,7 @@ namespace dpSqlFileTable
 					p.AddWithValue("@FileStream", content ?? Utils._StringToByteArray("0x"));
 				}, CommandType.Text);
 
-			return GetEntryData(entryData.StreamId, transaction);
+			return GetEntryData(entryData.StreamId, false, transaction);
 
 		}
 
@@ -95,12 +96,12 @@ namespace dpSqlFileTable
 			return result;
 		}
 
-		private EntryData GetEntryData(Guid streamId, SqlTransaction transaction)
+		protected internal EntryData GetEntryData(Guid streamId, bool getContent, SqlTransaction transaction)
 		{
 
 			EntryData result = new EntryData();
 
-			DataTable dt = qs.FillDataTableInTransaction(FormatQuery(SqlStrings.GetEntryDataByStreamId), 
+			DataTable dt = qs.FillDataTableInTransaction(FormatQuery(getContent ? SqlStrings.GetEntryDataWithContentByStreamId : SqlStrings.GetEntryDataByStreamId), 
 				transaction,
 				p =>
 				{
@@ -150,10 +151,10 @@ namespace dpSqlFileTable
 			// In case of duplication allowed, trying to find clone of object in hash table
 			if (allowDeduplication)
 			{
-				Guid hash = GetBytesHash(bytes);
+				Guid hash = GetMD5Hash(bytes);
 				EntryData duplicatedEntry = null;
 
-				await qs.BeginTransaction(transaction =>
+				await qs.BeginTransactionAsync(transaction =>
 				{
 					object streamId = qs.ExecuteScalarInTransaction(FormatQuery(SqlStrings.GetStreamIdByHash),
 						transaction,
@@ -164,7 +165,7 @@ namespace dpSqlFileTable
 
 					if (streamId != DBNull.Value)
 					{
-						duplicatedEntry = GetEntryData((Guid)streamId, transaction);
+						duplicatedEntry = GetEntryData((Guid)streamId, false, transaction);
 					}
 				});
 
@@ -175,20 +176,20 @@ namespace dpSqlFileTable
 			string directory = Utils._FormatFirectoryName(System.IO.Path.GetDirectoryName(path));
 			string file = System.IO.Path.GetFileName(path);
 
-			await qs.BeginTransaction(async transaction =>
+			await qs.BeginTransactionAsync(async transaction =>
 			{
 				EntryData directoryLocator = CreateDirectory(directory, transaction);
 				EntryData entryPathLocator = GetEntryData(file, directoryLocator, false, transaction);
 
 				newOrUpdatedEntry = entryPathLocator == null ? CreateEntry(file, directoryLocator, false, bytes, transaction)
-					: await UpdateEntryAsync(file, entryPathLocator, bytes, transaction);
+														: UpdateEntry(file, entryPathLocator, bytes, transaction);
 			});
 
 			return newOrUpdatedEntry;
 
 		}
 
-		private Guid GetBytesHash(byte[] bytes)
+		private Guid GetMD5Hash(byte[] bytes)
 		{
 			using (MD5 md5 = MD5.Create())
 			{

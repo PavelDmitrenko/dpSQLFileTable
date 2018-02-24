@@ -9,6 +9,7 @@ namespace dpSqlFileTable
 	{
 		public Guid StreamId;
 		public string PathLocator;
+		public byte[] Content; 
 
 		public EntryData()
 		{
@@ -18,6 +19,11 @@ namespace dpSqlFileTable
 		{
 			PathLocator = (string)dataTable.Rows[0]["path_locator"];
 			StreamId = (Guid)dataTable.Rows[0]["stream_id"];
+
+			object streamData = dataTable.Rows[0]["file_stream"];
+
+			Content = streamData == DBNull.Value ? null: (byte[])streamData;
+			
 		}
 
 	}

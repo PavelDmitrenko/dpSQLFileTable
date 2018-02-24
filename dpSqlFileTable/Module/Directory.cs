@@ -7,7 +7,8 @@ namespace dpSqlFileTable
 	public sealed class Directory : Base
 	{
 
-		internal Directory(ConnectionStringSettings connectionStringSettings, string fileTable, string hashTable = null) : base(connectionStringSettings, fileTable, hashTable)
+		internal Directory(ConnectionStringSettings connectionStringSettings, string fileTable, string hashTable = null, bool debugMode = false) 
+			: base(connectionStringSettings, fileTable, hashTable, debugMode)
 		{
 
 		}
@@ -16,7 +17,7 @@ namespace dpSqlFileTable
 		{
 			EntryData result = null;
 
-			await qs.BeginTransaction(transaction =>
+			await qs.BeginTransactionAsync(transaction =>
 			{
 				result = base.CreateDirectory(directoryName, transaction);
 			});

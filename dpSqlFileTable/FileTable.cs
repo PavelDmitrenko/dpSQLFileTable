@@ -11,16 +11,16 @@ namespace dpSqlFileTable
 		public readonly Directory Directory;
 		public readonly File File;
 
-		public FileTable(ConnectionStringSettings connectionStringSettings, string dbName)
+		public FileTable(ConnectionStringSettings connectionStringSettings, string dbName, bool debugMode = false)
 		{
 			Directory = new Directory(connectionStringSettings, dbName);
-			File = new File(connectionStringSettings, dbName);
+			File = new File(connectionStringSettings, dbName, null, debugMode);
 		}
 
-		public FileTable(ConnectionStringSettings connectionStringSettings, string dbName, string hashTable)
+		public FileTable(ConnectionStringSettings connectionStringSettings, string dbName, string hashTable, bool debugMode = false)
 		{
-			Directory = new Directory(connectionStringSettings, dbName);
-			File = new File(connectionStringSettings, dbName);
+			Directory = new Directory(connectionStringSettings, dbName, hashTable, debugMode);
+			File = new File(connectionStringSettings, dbName, hashTable, debugMode);
 		}
 
 	}
