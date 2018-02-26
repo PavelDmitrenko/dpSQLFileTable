@@ -17,13 +17,16 @@ namespace dpSqlFileTable
 
 		public void LoadFromDataTable(DataTable dataTable)
 		{
-			PathLocator = (string)dataTable.Rows[0]["path_locator"];
-			StreamId = (Guid)dataTable.Rows[0]["stream_id"];
+			DataRow dr = dataTable.Rows[0];
 
-			object streamData = dataTable.Rows[0]["file_stream"];
+			PathLocator = (string)dr["path_locator"];
+			StreamId = (Guid)dr["stream_id"];
 
-			Content = streamData == DBNull.Value ? null: (byte[])streamData;
-			
+			if (dr.Table.Columns.Contains("file_stream"))
+			{
+				object streamData = dr["file_stream"];
+				Content = streamData == DBNull.Value ? null : (byte[])streamData;
+			}
 		}
 
 	}

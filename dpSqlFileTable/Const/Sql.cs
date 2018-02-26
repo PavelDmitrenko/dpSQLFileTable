@@ -25,12 +25,12 @@ namespace dpSqlFileTable
 			@"SELECT TOP 1 stream_id, CAST(path_locator AS VARCHAR(MAX)) as path_locator, file_stream 
 						FROM {DBNAME} WHERE stream_id = @StreamId;";
 
-		public static readonly string GetEntryDataRoot = 
-						@"SELECT TOP 1 stream_id, CAST(path_locator AS VARCHAR(MAX)) as path_locator 
+		public static readonly string GetEntryDataRoot =
+						@"SELECT TOP 1 stream_id, CAST(path_locator AS VARCHAR(MAX)) as path_locator
 						FROM {DBNAME} WHERE name=@Name and is_directory=@EntryType AND parent_path_locator is null;";
 
 		public static readonly string GetEntryDataWithParent =
-						@"SELECT TOP 1 stream_id, CAST(path_locator AS VARCHAR(MAX)) as path_locator 
+						@"SELECT TOP 1 stream_id, CAST(path_locator AS VARCHAR(MAX)) as path_locator
 						FROM {DBNAME} WHERE name=@Name and is_directory = @EntryType AND parent_path_locator = @ParentPathLocator;";
 
 		public static readonly string UpdateEntry =
