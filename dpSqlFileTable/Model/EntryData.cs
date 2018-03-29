@@ -9,7 +9,9 @@ namespace dpSqlFileTable
 	{
 		public Guid StreamId;
 		public string PathLocator;
-		public byte[] Content; 
+		public byte[] Content;
+		public bool IsDuplicate;
+		public Guid Hash;
 
 		public EntryData()
 		{

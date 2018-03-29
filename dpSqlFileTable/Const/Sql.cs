@@ -40,6 +40,8 @@ namespace dpSqlFileTable
 		public static readonly string GetStreamIdByHash =
 						@"SELECT TOP 1 StreamID FROM {HASHTABLENAME} WHERE Hash=@Hash;";
 
+		public static readonly string UpdateHashTable =
+						@"INSERT INTO {HASHTABLENAME} (StreamId, Hash) VALUES (@StreamId, @Hash);";
 	}
 	
 }

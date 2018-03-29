@@ -3,7 +3,6 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DpQuery;
@@ -24,7 +23,7 @@ namespace dpSqlFileTable
 			qs.DebugMode = debugMode;
 		}
 
-		protected internal EntryData UpdateEntry(string entryName, EntryData entryData, byte[] content, SqlTransaction transaction)
+		private async Task<EntryData> UpdateEntry(string entryName, EntryData entryData, byte[] content, SqlTransaction transaction)
 		{
 			qs.ExecuteNonQueryInTransaction(FormatQuery(SqlStrings.UpdateEntry),
 				transaction,
@@ -36,11 +35,13 @@ namespace dpSqlFileTable
 					p.AddWithValue("@FileStream", content ?? Utils._StringToByteArray("0x"));
 				}, CommandType.Text);
 
-			return GetEntryData(entryData.StreamId, false, transaction);
+			EntryData result = await GetEntryData(entryData.StreamId, false, transaction);
+			result.Content = content;
+			return result;
 
 		}
 
-		protected internal EntryData CreateDirectory(string directoryName, SqlTransaction transaction)
+		protected internal async Task<EntryData> CreateDirectory(string directoryName, SqlTransaction transaction)
 		{
 
 			EntryData result = new EntryData();
@@ -52,8 +53,8 @@ namespace dpSqlFileTable
 
 				foreach (var directory in spl)
 				{
-					EntryData pathLocator = GetEntryData(entryName: directory, parentLocator: parent, isDirectory: true, transaction: transaction);
-					result = pathLocator ?? CreateEntry(entryName: directory, parentLocator: parent, isDirectory: true, content: null, transaction: transaction);
+					EntryData pathLocator = await GetEntryData(entryName: directory, parentLocator: parent, isDirectory: true, transaction: transaction);
+					result = pathLocator ?? await CreateEntry(entryName: directory, parentLocator: parent, isDirectory: true, content: null, transaction: transaction);
 					parent = result;
 				}
 			}
@@ -65,16 +66,15 @@ namespace dpSqlFileTable
 			return result;
 		}
 
-		protected internal EntryData GetEntryData(string entryName, EntryData parentLocator, bool isDirectory, SqlTransaction transaction)
+		protected internal async Task<EntryData> GetEntryData(string entryName, EntryData parentLocator, bool isDirectory, SqlTransaction transaction)
 		{
 
 			EntryData result = new EntryData();
 
-			DataTable dt = qs.FillDataTableInTransaction(() => parentLocator == null
+			DataTable dt = await qs.FillDataTableInTransactionAsync(() => parentLocator == null
 					? FormatQuery(SqlStrings.GetEntryDataRoot)
 					: FormatQuery(SqlStrings.GetEntryDataWithParent),
 				transaction,
-
 				p =>
 				{
 					if (parentLocator != null)
@@ -96,12 +96,11 @@ namespace dpSqlFileTable
 			return result;
 		}
 
-		protected internal EntryData GetEntryData(Guid streamId, bool getContent, SqlTransaction transaction)
+		protected internal async Task<EntryData> GetEntryData(Guid streamId, bool getContent, SqlTransaction transaction)
 		{
-
 			EntryData result = new EntryData();
 
-			DataTable dt = qs.FillDataTableInTransaction(FormatQuery(getContent ? SqlStrings.GetEntryDataWithContentByStreamId : SqlStrings.GetEntryDataByStreamId), 
+			DataTable dt = await qs.FillDataTableInTransactionAsync(FormatQuery(getContent ? SqlStrings.GetEntryDataWithContentByStreamId : SqlStrings.GetEntryDataByStreamId), 
 				transaction,
 				p =>
 				{
@@ -120,11 +119,11 @@ namespace dpSqlFileTable
 			return result;
 		}
 
-		private EntryData CreateEntry(string entryName, EntryData parentLocator, bool isDirectory, byte[] content, SqlTransaction transaction)
+		private async Task<EntryData> CreateEntry(string entryName, EntryData parentLocator, bool isDirectory, byte[] content, SqlTransaction transaction)
 		{
 			EntryData result = new EntryData();
 
-			DataTable dt = qs.FillDataTableInTransaction(FormatQuery(SqlStrings.CreateEntry),
+			DataTable dt = await qs.FillDataTableInTransactionAsync(FormatQuery(SqlStrings.CreateEntry),
 				transaction,
 				p =>
 				{
@@ -141,6 +140,7 @@ namespace dpSqlFileTable
 				result.LoadFromDataTable(dt);
 			}
 
+			result.Content = content;
 			return result;
 		}
 
@@ -154,18 +154,20 @@ namespace dpSqlFileTable
 				Guid hash = GetMD5Hash(bytes);
 				EntryData duplicatedEntry = null;
 
-				await qs.BeginTransactionAsync(transaction =>
+				await qs.BeginTransactionAsync(async connection =>
 				{
-					object streamId = qs.ExecuteScalarInTransaction(FormatQuery(SqlStrings.GetStreamIdByHash),
-						transaction,
+					object streamId = await qs.ExecuteScalarInTransactionAsync(FormatQuery(SqlStrings.GetStreamIdByHash),
+						connection,
 						p =>
 						{
 							p.AddWithValue("@Hash", hash);
 						}, CommandType.Text);
 
-					if (streamId != DBNull.Value)
+					if (streamId != null)
 					{
-						duplicatedEntry = GetEntryData((Guid)streamId, false, transaction);
+						duplicatedEntry = await GetEntryData((Guid)streamId, false, connection);
+						duplicatedEntry.IsDuplicate = true;
+						duplicatedEntry.Hash = hash;
 					}
 				});
 
@@ -178,15 +180,34 @@ namespace dpSqlFileTable
 
 			await qs.BeginTransactionAsync(async transaction =>
 			{
-				EntryData directoryLocator = CreateDirectory(directory, transaction);
-				EntryData entryPathLocator = GetEntryData(file, directoryLocator, false, transaction);
+				EntryData directoryLocator = await CreateDirectory(directory, transaction);
+				EntryData entryPathLocator = await GetEntryData(file, directoryLocator, false, transaction);
+	
+				newOrUpdatedEntry = entryPathLocator == null ? await CreateEntry(file, directoryLocator, false, bytes, transaction)
+														: await UpdateEntry(file, entryPathLocator, bytes, transaction);
 
-				newOrUpdatedEntry = entryPathLocator == null ? CreateEntry(file, directoryLocator, false, bytes, transaction)
-														: UpdateEntry(file, entryPathLocator, bytes, transaction);
+				// Insert hash info if hashTable specified
+				if (allowDeduplication)
+				{
+					await UpdateHashTable(newOrUpdatedEntry, transaction);
+				}
 			});
 
 			return newOrUpdatedEntry;
 
+		}
+
+		private async Task UpdateHashTable(EntryData entry, SqlTransaction transaction)
+		{
+			entry.Hash = GetMD5Hash(entry.Content);
+
+			await qs.ExecuteNonQueryInTransactionAsync(FormatQuery(SqlStrings.UpdateHashTable), transaction, 
+				p =>
+			{
+				p.AddWithValue("@StreamId", entry.StreamId);
+				p.AddWithValue("@Hash", entry.Hash);
+			}, 
+			CommandType.Text);
 		}
 
 		private Guid GetMD5Hash(byte[] bytes)

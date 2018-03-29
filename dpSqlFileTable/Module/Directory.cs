@@ -17,9 +17,9 @@ namespace dpSqlFileTable
 		{
 			EntryData result = null;
 
-			await qs.BeginTransactionAsync(transaction =>
+			await qs.BeginTransactionAsync( transaction =>
 			{
-				result = base.CreateDirectory(directoryName, transaction);
+				return base.CreateDirectory(directoryName, transaction);
 			});
 
 			return result;

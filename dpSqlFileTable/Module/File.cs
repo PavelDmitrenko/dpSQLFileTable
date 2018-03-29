@@ -24,19 +24,19 @@ namespace dpSqlFileTable
 		public async Task<byte[]> ReadAllBytesAsync(Guid streamId)
 		{
 			EntryData entryData  = null;
-			await qs.BeginTransactionAsync(transaction =>
+			await qs.BeginTransactionAsync(async transaction =>
 				{
-					entryData = GetEntryData(streamId: streamId, getContent: true, transaction: transaction);
+					entryData = await GetEntryData(streamId: streamId, getContent: true, transaction: transaction);
 				});
 			return entryData.Content;
 		}
 
-		public byte[] ReadAllBytes(Guid streamId)
+		public async Task<byte[]> ReadAllBytes(Guid streamId)
 		{
 			EntryData entryData = null;
-			qs.BeginTransaction(transaction =>
+			qs.BeginTransaction(async transaction =>
 				{
-					entryData = GetEntryData(streamId: streamId, getContent: true, transaction: transaction);
+					entryData = await GetEntryData(streamId: streamId, getContent: true, transaction: transaction);
 				});
 			return entryData.Content;
 		}
@@ -45,9 +45,9 @@ namespace dpSqlFileTable
 		{
 			EntryData pathLocator = null;
 
-			await qs.BeginTransactionAsync(transaction =>
+			await qs.BeginTransactionAsync(async transaction =>
 			{
-				pathLocator = GetEntryData(entryName: path, parentLocator: null, isDirectory: false, transaction: transaction);
+				pathLocator = await GetEntryData(entryName: path, parentLocator: null, isDirectory: false, transaction: transaction);
 			});
 
 			return pathLocator != null;
