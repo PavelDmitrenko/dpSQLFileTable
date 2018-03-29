@@ -1,13 +1,17 @@
 # SQLFileTable
-Writes&reads to/from MSSQL FileTable structure from C# code.
-Supports deduplication (based on MD5 hashes of file contents).
-
+Writes&reads to/from MSSQL FileTable structure from C# code.  
+Supports deduplication (based on MD5 hashes of file contents).  
 
 ## Usage
 #### Constructor
 ```csharp
 FileTable(ConnectionStringSettings connectionStringSettings, string dbName, string hashTable)
 ```
+
+#### Deduplication
+In order to use deduplication functionality provide "hashTable" value to ctor, and set "userDeduplaction" value to true.  
+
+
 #### Methods
 ```csharp
 File.WriteAllBytesAsync(string path, byte[] bytes, bool useDeduplication = false)
