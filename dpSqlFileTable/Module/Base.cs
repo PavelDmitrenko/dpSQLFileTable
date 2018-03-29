@@ -5,7 +5,7 @@ using System.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using DpQuery;
+using dpQuery;
 
 namespace dpSqlFileTable
 {

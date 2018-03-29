@@ -4,7 +4,7 @@ using System.Configuration;
 using System.Data;
 using System.Text;
 using System.Threading.Tasks;
-using DpQuery;
+using dpQuery;
 
 namespace dpSqlFileTable
 {

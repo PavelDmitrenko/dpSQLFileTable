@@ -1,6 +1,6 @@
 ﻿using System.Configuration;
 using System.Threading.Tasks;
-using DpQuery;
+using dpQuery;
 
 namespace dpSqlFileTable
 {
