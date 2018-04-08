@@ -10,7 +10,7 @@ namespace dpSqlFileTable
 {
 	public sealed class File : Base
 	{
-		internal File(ConnectionStringSettings connectionStringSettings, string fileTable, string hashTable = null, bool debugMode = false) 
+		internal File(ConnectionStringSettings connectionStringSettings, string fileTable, string hashTable, bool debugMode) 
 			: base(connectionStringSettings, fileTable, hashTable, debugMode)
 		{
 

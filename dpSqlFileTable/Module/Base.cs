@@ -156,7 +156,7 @@ namespace dpSqlFileTable
 
 				await qs.BeginTransactionAsync(async connection =>
 				{
-					object streamId = await qs.ExecuteScalarInTransactionAsync(FormatQuery(SqlStrings.GetStreamIdByHash),
+					   object streamId = await qs.ExecuteScalarInTransactionAsync(FormatQuery(SqlStrings.GetStreamIdByHash),
 						connection,
 						p =>
 						{
@@ -166,8 +166,11 @@ namespace dpSqlFileTable
 					if (streamId != null)
 					{
 						duplicatedEntry = await GetEntryData((Guid)streamId, false, connection);
-						duplicatedEntry.IsDuplicate = true;
-						duplicatedEntry.Hash = hash;
+						if (duplicatedEntry != null) // Original file was removed
+						{
+							duplicatedEntry.IsDuplicate = true;
+							duplicatedEntry.Hash = hash;
+						}
 					}
 				});
 
@@ -189,6 +192,7 @@ namespace dpSqlFileTable
 				// Insert hash info if hashTable specified
 				if (allowDeduplication)
 				{
+					newOrUpdatedEntry.Hash = GetMD5Hash(newOrUpdatedEntry.Content);
 					await UpdateHashTable(newOrUpdatedEntry, transaction);
 				}
 			});
